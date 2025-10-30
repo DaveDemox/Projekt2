@@ -8,6 +8,7 @@ export default function OptionsMenu({
   onDeleteList,
   onLeaveList,
   onChangeName,
+  role = 'member',
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
@@ -48,12 +49,12 @@ export default function OptionsMenu({
       <IconButton label={'⋯'} onClick={() => setOpen((v) => !v)} size={48} filled={false} />
       {open && (
         <div style={{ position: 'absolute', right: 0, marginTop: 10, width: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-          {item('Add user', onAddUser)}
-          {item('Remove user', onRemoveUser)}
-          {item('Archive', onArchive)}
-          {item('Delete list', onDeleteList)}
-          {item('Leave list', onLeaveList)}
-          {item('Change name', onChangeName)}
+          {role === 'owner' && item('Add user', onAddUser)}
+          {role === 'owner' && item('Remove user', onRemoveUser)}
+          {role === 'owner' && item('Archive', onArchive)}
+          {role === 'owner' && item('Delete list', onDeleteList)}
+          {role !== 'owner' && item('Leave list', onLeaveList)}
+          {role === 'owner' && item('Change name', onChangeName)}
         </div>
       )}
     </div>
