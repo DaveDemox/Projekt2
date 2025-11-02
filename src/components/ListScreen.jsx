@@ -9,6 +9,7 @@ import IconButton from './IconButton';
 
 export default function ListScreen({ title = 'List name', initialItems = [] }) {
   const Roles = { MEMBER: 'member', OWNER: 'owner' };
+  const [listTitle, setListTitle] = useState(title);
   const [items, setItems] = useState(
     initialItems.map((t, i) => ({ id: i + 1, label: t, checked: i === 1 }))
   );
@@ -16,6 +17,7 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
     { id: 1, name: 'David', initials: 'D', role: Roles.OWNER },
   ]);
   const [currentUserId, setCurrentUserId] = useState(1);
+  const [showCompletedOnly, setShowCompletedOnly] = useState(false);
 
   const toggle = (id, next) => {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked: next } : it)));
@@ -61,9 +63,24 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
     );
   };
 
+  const changeListName = () => {
+    const newName = window.prompt('Enter new list name:', listTitle);
+    if (newName !== null && newName.trim()) {
+      setListTitle(newName.trim());
+    }
+  };
+
+  const toggleShowCompleted = () => {
+    setShowCompletedOnly((prev) => !prev);
+  };
+
+  const displayedItems = showCompletedOnly
+    ? items.filter((it) => it.checked)
+    : items;
+
   return (
     <div style={{ paddingBottom: 110 }}>
-      <HeaderSection title={title} onBack={() => {}}>
+      <HeaderSection title={listTitle} onBack={() => {}}>
         {members.map((m) => (
           <div key={m.id} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', margin: '0 10px' }}>
             <Avatar initials={m.initials} />
@@ -75,7 +92,12 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
           </div>
         ))}
         <AddMemberButton onClick={addMember} />
-        <IconButton label={'✓'} onClick={() => {}} size={48} filled={false} />
+        <IconButton
+          label={'✓'}
+          onClick={toggleShowCompleted}
+          size={48}
+          filled={showCompletedOnly}
+        />
       </HeaderSection>
 
       {/* Role testing controls */}
@@ -112,7 +134,7 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
       </div>
 
       <div style={{ paddingTop: 12 }}>
-        {items.map((it) => (
+        {displayedItems.map((it) => (
           <ListItem
             key={it.id}
             label={it.label}
@@ -128,12 +150,10 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
       <div style={{ position: 'fixed', top: 18, right: 16 }}>
         <OptionsMenu
           role={currentUser?.role || Roles.MEMBER}
-          onAddUser={() => {}}
-          onRemoveUser={() => {}}
           onArchive={() => {}}
           onDeleteList={() => {}}
           onLeaveList={() => removeMember(currentUserId)}
-          onChangeName={() => {}}
+          onChangeName={changeListName}
         />
       </div>
     </div>

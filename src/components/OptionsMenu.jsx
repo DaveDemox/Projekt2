@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import IconButton from './IconButton';
 
 export default function OptionsMenu({
-  onAddUser,
-  onRemoveUser,
   onArchive,
   onDeleteList,
   onLeaveList,
@@ -49,8 +47,6 @@ export default function OptionsMenu({
       <IconButton label={'⋯'} onClick={() => setOpen((v) => !v)} size={48} filled={false} />
       {open && (
         <div style={{ position: 'absolute', right: 0, marginTop: 10, width: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-          {role === 'owner' && item('Add user', onAddUser)}
-          {role === 'owner' && item('Remove user', onRemoveUser)}
           {role === 'owner' && item('Archive', onArchive)}
           {role === 'owner' && item('Delete list', onDeleteList)}
           {role !== 'owner' && item('Leave list', onLeaveList)}
