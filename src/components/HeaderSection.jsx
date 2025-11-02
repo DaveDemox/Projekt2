@@ -17,8 +17,10 @@ export default function HeaderSection({ title, onBack, children }) {
       <div style={{ textAlign: 'center', marginTop: 8 }}>
         <h1 style={{ margin: 0, fontSize: 42, fontWeight: 600 }}>{title}</h1>
       </div>
-      <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 20 }}>
-        {children}
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20, padding: '0 20px', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', maxWidth: '100%' }}>
+          {children}
+        </div>
       </div>
     </div>
   );

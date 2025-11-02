@@ -81,24 +81,66 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
   return (
     <div style={{ paddingBottom: 110 }}>
       <HeaderSection title={listTitle} onBack={() => {}}>
-        {members.map((m) => (
-          <div key={m.id} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', margin: '0 10px' }}>
-            <Avatar initials={m.initials} />
-            {canRemove(m) && (
-              <div style={{ position: 'absolute', left: -6, top: -6 }}>
-                <IconButton label={'–'} onClick={() => removeMember(m.id)} size={24} />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            width: '100%',
+            maxWidth: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              justifyContent: 'center',
+              flex: '0 1 auto',
+              maxWidth: 'calc(100% - 100px)',
+              padding: '0 10px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#8cbf99 #f0f0f0',
+            }}
+          >
+            {members.map((m) => (
+              <div
+                key={m.id}
+                style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Avatar initials={m.initials} />
+                {canRemove(m) && (
+                  <div style={{ position: 'absolute', left: -6, top: -6 }}>
+                    <IconButton label={'–'} onClick={() => removeMember(m.id)} size={24} />
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-        <AddMemberButton onClick={addMember} />
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <AddMemberButton onClick={addMember} />
+          </div>
+        </div>
+      </HeaderSection>
+
+      {/* Checkmark button below members, aligned right */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', marginTop: '10px' }}>
         <IconButton
           label={'✓'}
           onClick={toggleShowCompleted}
           size={48}
           filled={showCompletedOnly}
         />
-      </HeaderSection>
+      </div>
 
       {/* Role testing controls */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
