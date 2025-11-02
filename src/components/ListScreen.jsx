@@ -126,9 +126,11 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <AddMemberButton onClick={addMember} />
-          </div>
+          {currentUser?.role === Roles.OWNER && (
+            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <AddMemberButton onClick={addMember} />
+            </div>
+          )}
         </div>
       </HeaderSection>
 
