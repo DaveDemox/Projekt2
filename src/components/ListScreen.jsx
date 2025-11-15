@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useLists } from '../context/ListsContext';
+import { getCurrentUser, Roles, MOCK_USERS } from '../utils/authorization';
 import HeaderSection from './HeaderSection';
 import Avatar from './Avatar';
 import AddMemberButton from './AddMemberButton';
@@ -6,68 +9,130 @@ import OptionsMenu from './OptionsMenu';
 import ListItem from './ListItem';
 import CreateListInput from './CreateListInput';
 import IconButton from './IconButton';
+import AddMemberModal from './AddMemberModal';
+import ConfirmModal from './ConfirmModal';
+import '../styles/common.css';
 
 export default function ListScreen({ title = 'List name', initialItems = [] }) {
-  const Roles = { MEMBER: 'member', OWNER: 'owner' };
-  const [listTitle, setListTitle] = useState(title);
+  const navigate = useNavigate();
+  const { listId } = useParams();
+  const { getList, updateList, memberships, addMemberToList, removeMemberFromList, deleteList, archiveList, unarchiveList } = useLists();
+  
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+  const [showArchiveConfirmModal, setShowArchiveConfirmModal] = useState(false);
+  const [showUnarchiveConfirmModal, setShowUnarchiveConfirmModal] = useState(false);
+  
+  const listData = getList(listId);
+  const isArchived = listData?.archived || false;
+  const currentUser = getCurrentUser();
+  const currentUserRole = useMemo(() => {
+    if (!listData) return null;
+    const listMemberships = memberships[listId];
+    return listMemberships?.[currentUser.id] || null;
+  }, [listId, listData, memberships, currentUser.id]);
+  
+  const members = useMemo(() => {
+    if (!listData) return [];
+    const listMemberships = memberships[listId];
+    if (!listMemberships) return [];
+    
+    return Object.entries(listMemberships)
+      .map(([userId, role]) => {
+        const user = MOCK_USERS[Number(userId)];
+        if (!user) return null;
+        return {
+          ...user,
+          role,
+        };
+      })
+      .filter(Boolean);
+  }, [listId, listData, memberships]);
+  
+  const [listTitle, setListTitle] = useState(listData?.name || title);
   const [items, setItems] = useState(
-    initialItems.map((t, i) => ({ id: i + 1, label: t, checked: i === 1 }))
+    listData?.items?.map((t, i) => ({ id: i + 1, label: t, checked: false })) ||
+    (initialItems.length > 0 
+      ? initialItems.map((t, i) => ({ id: i + 1, label: t, checked: i === 1 }))
+      : [{ id: 1, label: 'bacon', checked: false }, { id: 2, label: 'eggs', checked: false }, { id: 3, label: 'oil', checked: false }, { id: 4, label: 'avocado', checked: false }])
   );
-  const [members, setMembers] = useState([
-    { id: 1, name: 'David', initials: 'D', role: Roles.OWNER },
-  ]);
-  const [currentUserId, setCurrentUserId] = useState(1);
+  
+  useEffect(() => {
+    if (listData) {
+      setListTitle(listData.name);
+      setItems(listData.items?.map((t, i) => ({ id: i + 1, label: t, checked: false })) || []);
+    }
+  }, [listId, listData]);
+  
+  const handleBack = () => {
+    navigate('/');
+  };
+  
   const [showCompletedOnly, setShowCompletedOnly] = useState(false);
 
   const toggle = (id, next) => {
+    if (isArchived) return; // Disable editing when archived
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, checked: next } : it)));
   };
 
-  const remove = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
-  const add = (label) =>
+  const remove = (id) => {
+    if (isArchived) return; // Disable editing when archived
+    setItems((prev) => prev.filter((it) => it.id !== id));
+  };
+  
+  const add = (label) => {
+    if (isArchived) return; // Disable editing when archived
     setItems((prev) => [...prev, { id: Date.now(), label, checked: false }]);
-
-  const nameToInitials = (name) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 0) return '?';
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
   };
 
-  const addMember = () => {
-    const input = window.prompt('Enter user name');
-    if (!input) return;
-    const name = input.trim();
-    if (!name) return;
-    setMembers((prev) => [
-      ...prev,
-      { id: Date.now(), name, initials: nameToInitials(name), role: Roles.MEMBER },
-    ]);
+  const handleAddMember = (userId) => {
+    addMemberToList(Number(listId), userId, 'member');
   };
 
-  const removeMember = (id) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
-    if (currentUserId === id && members.length > 1) {
-      const next = members.find((m) => m.id !== id);
-      if (next) setCurrentUserId(next.id);
-    }
+  const handleRemoveMember = (userId) => {
+    removeMemberFromList(Number(listId), userId);
   };
 
-  const currentUser = members.find((m) => m.id === currentUserId);
+  const handleDeleteList = () => {
+    deleteList(Number(listId));
+    navigate('/');
+  };
+
+  const handleLeaveList = () => {
+    removeMemberFromList(Number(listId), currentUser.id);
+    navigate('/');
+  };
+
+  const existingMemberIds = members.map((m) => m.id);
+
   const canRemove = (member) => {
-    // Only owners see minus bubbles, and never for owners or themselves
+    // Only owners can remove members, and never owners or themselves
     return (
-      currentUser?.role === Roles.OWNER &&
+      currentUserRole === Roles.OWNER &&
       member.role !== Roles.OWNER &&
-      member.id !== currentUserId
+      member.id !== currentUser.id
     );
   };
 
   const changeListName = () => {
+    if (isArchived) return; // Disable editing when archived
     const newName = window.prompt('Enter new list name:', listTitle);
     if (newName !== null && newName.trim()) {
       setListTitle(newName.trim());
+      if (listData) {
+        updateList(listId, { name: newName.trim() });
+      }
     }
+  };
+
+  const handleArchive = () => {
+    archiveList(Number(listId));
+    navigate('/');
+  };
+
+  const handleUnarchive = () => {
+    unarchiveList(Number(listId));
   };
 
   const toggleShowCompleted = () => {
@@ -80,62 +145,30 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
 
   return (
     <div style={{ paddingBottom: 110 }}>
-      <HeaderSection title={listTitle} onBack={() => {}}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            width: '100%',
-            maxWidth: '100%',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              justifyContent: 'center',
-              flex: '0 1 auto',
-              maxWidth: 'calc(100% - 100px)',
-              padding: '0 10px',
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#8cbf99 #f0f0f0',
-            }}
-          >
+      <HeaderSection title={listTitle} onBack={handleBack}>
+        <div className="members-container">
+          <div className="members-scroll">
             {members.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  position: 'relative',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
+              <div key={m.id} className="member-item">
                 <Avatar initials={m.initials} />
-                {canRemove(m) && (
+                {canRemove(m) && !isArchived && (
                   <div style={{ position: 'absolute', left: -6, top: -6 }}>
-                    <IconButton label={'–'} onClick={() => removeMember(m.id)} size={24} />
+                    <IconButton label={'–'} onClick={() => handleRemoveMember(m.id)} size={24} />
                   </div>
                 )}
               </div>
             ))}
           </div>
-          {currentUser?.role === Roles.OWNER && (
-            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              <AddMemberButton onClick={addMember} />
+          {currentUserRole === Roles.OWNER && !isArchived && (
+            <div className="flex-center" style={{ flexShrink: 0 }}>
+              <AddMemberButton onClick={() => setShowAddMemberModal(true)} />
             </div>
           )}
         </div>
       </HeaderSection>
 
       {/* Checkmark button below members, aligned right */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', marginTop: '10px' }}>
+      <div className="flex" style={{ justifyContent: 'flex-end', paddingRight: '20px', marginTop: '10px' }}>
         <IconButton
           label={'✓'}
           onClick={toggleShowCompleted}
@@ -144,38 +177,11 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
         />
       </div>
 
-      {/* Role testing controls */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-        <label>
-          You:
-          <select
-            value={currentUserId}
-            onChange={(e) => setCurrentUserId(Number(e.target.value))}
-            style={{ marginLeft: 6 }}
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Role:
-          <select
-            value={members.find((m) => m.id === currentUserId)?.role || Roles.MEMBER}
-            onChange={(e) =>
-              setMembers((prev) =>
-                prev.map((m) =>
-                  m.id === currentUserId ? { ...m, role: e.target.value } : m
-                )
-              )
-            }
-            style={{ marginLeft: 6 }}
-          >
-            <option value={Roles.MEMBER}>member</option>
-            <option value={Roles.OWNER}>owner</option>
-          </select>
-        </label>
-      </div>
+      {isArchived && (
+        <div className="warning-banner">
+          This list is archived. Editing is disabled.
+        </div>
+      )}
 
       <div style={{ paddingTop: 12 }}>
         {displayedItems.map((it) => (
@@ -184,22 +190,75 @@ export default function ListScreen({ title = 'List name', initialItems = [] }) {
             label={it.label}
             checked={it.checked}
             onToggle={(n) => toggle(it.id, n)}
-            onDelete={() => remove(it.id)}
+            onDelete={isArchived ? null : () => remove(it.id)}
           />
         ))}
       </div>
 
-      <CreateListInput onCreate={add} />
+      {!isArchived && <CreateListInput onCreate={add} />}
 
       <div style={{ position: 'fixed', top: 18, right: 16 }}>
         <OptionsMenu
-          role={currentUser?.role || Roles.MEMBER}
-          onArchive={() => {}}
-          onDeleteList={() => {}}
-          onLeaveList={() => removeMember(currentUserId)}
+          role={currentUserRole || Roles.MEMBER}
+          isArchived={isArchived}
+          onArchive={currentUserRole === Roles.OWNER && !isArchived ? () => setShowArchiveConfirmModal(true) : null}
+          onUnarchive={currentUserRole === Roles.OWNER && isArchived ? () => setShowUnarchiveConfirmModal(true) : null}
+          onDeleteList={() => setShowDeleteConfirmModal(true)}
+          onLeaveList={() => setShowLeaveConfirmModal(true)}
           onChangeName={changeListName}
         />
       </div>
+
+      <AddMemberModal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        onAdd={handleAddMember}
+        existingMemberIds={existingMemberIds}
+      />
+
+      <ConfirmModal
+        isOpen={showDeleteConfirmModal}
+        onClose={() => setShowDeleteConfirmModal(false)}
+        onConfirm={handleDeleteList}
+        title="Delete List"
+        message={`Are you sure you want to delete "${listTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        danger={true}
+      />
+
+      <ConfirmModal
+        isOpen={showLeaveConfirmModal}
+        onClose={() => setShowLeaveConfirmModal(false)}
+        onConfirm={handleLeaveList}
+        title="Leave List"
+        message={`Are you sure you want to leave "${listTitle}"? You will no longer have access to this list.`}
+        confirmText="Leave"
+        cancelText="Cancel"
+        danger={true}
+      />
+
+      <ConfirmModal
+        isOpen={showArchiveConfirmModal}
+        onClose={() => setShowArchiveConfirmModal(false)}
+        onConfirm={handleArchive}
+        title="Archive List"
+        message={`Are you sure you want to archive "${listTitle}"? The list will be moved to archived lists and editing will be disabled.`}
+        confirmText="Archive"
+        cancelText="Cancel"
+        danger={false}
+      />
+
+      <ConfirmModal
+        isOpen={showUnarchiveConfirmModal}
+        onClose={() => setShowUnarchiveConfirmModal(false)}
+        onConfirm={handleUnarchive}
+        title="Unarchive List"
+        message={`Are you sure you want to unarchive "${listTitle}"? The list will be moved back to active lists and editing will be enabled.`}
+        confirmText="Unarchive"
+        cancelText="Cancel"
+        danger={false}
+      />
     </div>
   );
 }
